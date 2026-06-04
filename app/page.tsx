@@ -5,7 +5,7 @@ import LetterGlitch from "@/components/LetterGlitch";
 import { motion } from "framer-motion";
 import {
   MessageCircle,
-  Instagram,
+  Linkedin,
   Mail,
   ChevronDown,
   ExternalLink,
@@ -17,6 +17,15 @@ const Lanyard = dynamic(() => import("@/components/Lanyard"), {
   loading: () => (
     <div className="h-full w-full flex items-center justify-center text-zinc-500 font-mono">
       INITIALIZING ID...
+    </div>
+  ),
+});
+
+const HandTrackerBoard = dynamic(() => import("@/components/HandTrackerBoard"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-full w-full flex items-center justify-center text-[#61dca3] font-mono tracking-widest text-xs">
+      LOADING HAND TRACKER BOARD...
     </div>
   ),
 });
@@ -157,13 +166,37 @@ export default function HackerPortfolio() {
                     <Mail className="inline mr-2" size={18} /> EMAIL
                   </a>
                   <a
-                    href="https://www.instagram.com/alsyah88888/"
+                    href="https://www.linkedin.com/in/riansyah-lubis-6675b031a/?trk=opento_sprofile_details"
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="flex-1 border border-white/10 p-4 text-center hover:bg-white/5 transition-all text-white"
                   >
-                    <Instagram className="inline mr-2" size={18} /> IG
+                    <Linkedin className="inline mr-2" size={18} /> LINKEDIN
                   </a>
                 </div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* HAND TRACKER WHITEBOARD SECTION - snap-start */}
+        <section className="min-h-screen md:h-screen flex flex-col items-center justify-center p-6 bg-black/90 border-t border-white/5 snap-start relative">
+          <div className="max-w-6xl w-full h-[90%] flex flex-col justify-center">
+            <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
+              <div>
+                <h2 className="text-[#61dca3] font-[family-name:var(--font-orbitron)] text-2xl md:text-3xl tracking-tighter">
+                  HAND_TRACKING_BOARD
+                </h2>
+                <p className="text-zinc-500 text-xs tracking-[0.3em] uppercase mt-1">
+                  Interactive MediaPipe Canvas // AI Gesture Graphics
+                </p>
+              </div>
+              <div className="text-zinc-500 text-[10px] tracking-widest uppercase font-mono">
+                [ CAMERA_ACCESS_REQUIRED ]
+              </div>
+            </div>
+            <div className="flex-1 min-h-0">
+              <HandTrackerBoard />
             </div>
           </div>
         </section>
