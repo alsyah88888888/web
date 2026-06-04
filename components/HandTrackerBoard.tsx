@@ -14,15 +14,23 @@ const COLORS = [
 
 const SIZES = [2, 4, 8, 12, 18];
 
-const PIANO_KEYS = [
-  { note: "C4", freq: 261.63, label: "Do" },
-  { note: "D4", freq: 293.66, label: "Re" },
-  { note: "E4", freq: 329.63, label: "Mi" },
-  { note: "F4", freq: 349.23, label: "Fa" },
-  { note: "G4", freq: 392.00, label: "Sol" },
-  { note: "A4", freq: 440.00, label: "La" },
-  { note: "B4", freq: 493.88, label: "Si" },
-  { note: "C5", freq: 523.25, label: "Do" },
+const WHITE_KEYS = [
+  { id: 0, note: "C4", freq: 261.63, label: "Do" },
+  { id: 1, note: "D4", freq: 293.66, label: "Re" },
+  { id: 2, note: "E4", freq: 329.63, label: "Mi" },
+  { id: 3, note: "F4", freq: 349.23, label: "Fa" },
+  { id: 4, note: "G4", freq: 392.00, label: "Sol" },
+  { id: 5, note: "A4", freq: 440.00, label: "La" },
+  { id: 6, note: "B4", freq: 493.88, label: "Si" },
+  { id: 7, note: "C5", freq: 523.25, label: "Do" },
+];
+
+const BLACK_KEYS = [
+  { id: 8, note: "C#4", freq: 277.18, label: "Do#", leftOffset: 1 },
+  { id: 9, note: "D#4", freq: 311.13, label: "Re#", leftOffset: 2 },
+  { id: 10, note: "F#4", freq: 369.99, label: "Fa#", leftOffset: 4 },
+  { id: 11, note: "G#4", freq: 415.30, label: "Sol#", leftOffset: 5 },
+  { id: 12, note: "A#4", freq: 466.16, label: "La#", leftOffset: 6 },
 ];
 
 export default function HandTrackerBoard() {
@@ -46,7 +54,7 @@ export default function HandTrackerBoard() {
 
   // Refs for tracking drawing coordinates and piano states across frames
   const prevCoordsRef = useRef<{ x: number; y: number } | null>(null);
-  const activeKeyIndexRef = useRef<number | null>(null);
+  const activeKeyIdRef = useRef<number | null>(null);
   const [activePianoKey, setActivePianoKey] = useState<number | null>(null);
 
   // Load MediaPipe CDN Scripts
@@ -86,7 +94,6 @@ export default function HandTrackerBoard() {
     const uiCanvas = uiCanvasRef.current;
     if (!drawingCanvas || !uiCanvas) return;
 
-    // Set canvas dimensions
     const resizeCanvases = () => {
       const parent = drawingCanvas.parentElement;
       if (parent) {
@@ -196,7 +203,7 @@ export default function HandTrackerBoard() {
     }
   }, [isLoaded, isLoading]);
 
-  // Trigger UI canvas redraw on mode change
+  // Trigger UI canvas redraw on mode change or active key updates
   useEffect(() => {
     const uiCanvas = uiCanvasRef.current;
     if (uiCanvas) {
@@ -226,19 +233,18 @@ export default function HandTrackerBoard() {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
-      osc.type = "sine";
+      osc.type = "triangle"; // Nice retro synthesizer tone
       osc.frequency.setValueAtTime(freq, ctx.currentTime);
 
-      // Synthesizer ADSR Envelope for retro synth/bell tone
       gain.gain.setValueAtTime(0, ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.04);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.7);
+      gain.gain.linearRampToValueAtTime(0.35, ctx.currentTime + 0.03); // Fast attack
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8); // Long decaying release
 
       osc.connect(gain);
       gain.connect(ctx.destination);
 
       osc.start();
-      osc.stop(ctx.currentTime + 0.7);
+      osc.stop(ctx.currentTime + 0.8);
     } catch (e) {
       console.warn("AudioContext tone trigger failed: ", e);
     }
@@ -283,61 +289,126 @@ export default function HandTrackerBoard() {
     });
   };
 
-  // Render Piano Keys on UI Canvas
+  // Render Full Size Piano Keyboard on UI Canvas
   const drawPianoKeyboard = (ctx: CanvasRenderingContext2D) => {
     const canvas = uiCanvasRef.current;
     if (!canvas) return;
 
     const width = canvas.width;
     const height = canvas.height;
-    const pianoHeight = 120;
-    const keyWidth = width / PIANO_KEYS.length;
-    const yStart = height - pianoHeight;
+    
+    const numWhiteKeys = 8;
+    const whiteKeyWidth = width / numWhiteKeys;
+    const blackKeyWidth = whiteKeyWidth * 0.55;
+    const blackKeyHeight = height * 0.6;
 
     ctx.save();
     
-    // Background plate
-    ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
-    ctx.fillRect(0, yStart, width, pianoHeight);
-    ctx.strokeStyle = "rgba(97, 220, 163, 0.2)";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(0, yStart, width, pianoHeight);
+    // Clear back screen with subtle piano grid tint
+    ctx.fillStyle = "rgba(10, 10, 15, 0.95)";
+    ctx.fillRect(0, 0, width, height);
 
-    // Draw individual keys
-    PIANO_KEYS.forEach((key, i) => {
-      const xStart = i * keyWidth;
-      const isActive = activePianoKey === i;
+    // 1. Draw White Keys
+    for (let i = 0; i < numWhiteKeys; i++) {
+      const key = WHITE_KEYS[i];
+      const xStart = i * whiteKeyWidth;
+      const isActive = activePianoKey === key.id;
 
-      // Glow effect for active keys
       if (isActive) {
-        ctx.fillStyle = "rgba(97, 220, 163, 0.4)";
-        ctx.fillRect(xStart + 2, yStart + 2, keyWidth - 4, pianoHeight - 4);
+        // Glowing Neon Gradient for White Key
+        const gradient = ctx.createLinearGradient(xStart, 0, xStart, height);
+        gradient.addColorStop(0, "rgba(97, 220, 163, 0.4)");
+        gradient.addColorStop(1, "rgba(97, 220, 163, 0.1)");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(xStart + 2, 2, whiteKeyWidth - 4, height - 4);
         
         ctx.strokeStyle = "#61dca3";
-        ctx.shadowBlur = 15;
+        ctx.shadowBlur = 20;
         ctx.shadowColor = "#61dca3";
       } else {
-        ctx.fillStyle = "rgba(20, 20, 25, 0.9)";
-        ctx.fillRect(xStart + 2, yStart + 2, keyWidth - 4, pianoHeight - 4);
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
+        ctx.fillStyle = "rgba(30, 30, 35, 0.6)";
+        ctx.fillRect(xStart + 2, 2, whiteKeyWidth - 4, height - 4);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
         ctx.shadowBlur = 0;
       }
 
       ctx.lineWidth = 1.5;
-      ctx.strokeRect(xStart + 2, yStart + 2, keyWidth - 4, pianoHeight - 4);
+      ctx.strokeRect(xStart + 2, 2, whiteKeyWidth - 4, height - 4);
 
-      // Draw Key text/notes
-      ctx.font = "bold 12px monospace";
+      // Labels at the bottom of the white keys
+      ctx.font = "bold 13px monospace";
       ctx.fillStyle = isActive ? "#61dca3" : "rgba(255,255,255,0.4)";
       ctx.textAlign = "center";
-      ctx.fillText(key.note, xStart + keyWidth / 2, yStart + pianoHeight - 35);
+      ctx.fillText(key.note, xStart + whiteKeyWidth / 2, height - 40);
       
-      ctx.font = "9px monospace";
+      ctx.font = "10px monospace";
       ctx.fillStyle = isActive ? "#ffffff" : "rgba(255,255,255,0.2)";
-      ctx.fillText(key.label, xStart + keyWidth / 2, yStart + pianoHeight - 15);
+      ctx.fillText(key.label, xStart + whiteKeyWidth / 2, height - 20);
+    }
+
+    // 2. Draw Black Keys (overlay on borders)
+    BLACK_KEYS.forEach((key) => {
+      const xCenter = key.leftOffset * whiteKeyWidth;
+      const xStart = xCenter - blackKeyWidth / 2;
+      const isActive = activePianoKey === key.id;
+
+      if (isActive) {
+        // Glowing active state for black keys (Hot Pink / Magenta)
+        const gradient = ctx.createLinearGradient(xStart, 0, xStart, blackKeyHeight);
+        gradient.addColorStop(0, "rgba(255, 0, 127, 0.7)");
+        gradient.addColorStop(1, "rgba(255, 0, 127, 0.2)");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(xStart, 2, blackKeyWidth, blackKeyHeight - 2);
+
+        ctx.strokeStyle = "#ff007f";
+        ctx.shadowBlur = 25;
+        ctx.shadowColor = "#ff007f";
+      } else {
+        ctx.fillStyle = "rgba(10, 10, 12, 0.98)";
+        ctx.fillRect(xStart, 2, blackKeyWidth, blackKeyHeight - 2);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+        ctx.shadowBlur = 0;
+      }
+
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(xStart, 2, blackKeyWidth, blackKeyHeight - 2);
+
+      // Draw Key text/notes vertically inside black key
+      ctx.font = "bold 10px monospace";
+      ctx.fillStyle = isActive ? "#ffffff" : "rgba(255, 255, 255, 0.4)";
+      ctx.textAlign = "center";
+      ctx.fillText(key.note, xCenter, blackKeyHeight - 25);
     });
 
     ctx.restore();
+  };
+
+  // Find Piano Key index at given coordinates
+  const getPianoKeyAt = (x: number, y: number, width: number, height: number): number | null => {
+    const numWhiteKeys = 8;
+    const whiteKeyWidth = width / numWhiteKeys;
+    const blackKeyWidth = whiteKeyWidth * 0.55;
+    const blackKeyHeight = height * 0.6;
+
+    // Check black keys first (top priority)
+    for (let i = 0; i < BLACK_KEYS.length; i++) {
+      const key = BLACK_KEYS[i];
+      const xCenter = key.leftOffset * whiteKeyWidth;
+      const xStart = xCenter - blackKeyWidth / 2;
+      const xEnd = xCenter + blackKeyWidth / 2;
+
+      if (y >= 0 && y <= blackKeyHeight && x >= xStart && x <= xEnd) {
+        return key.id;
+      }
+    }
+
+    // Check white keys
+    const whiteIndex = Math.floor(x / whiteKeyWidth);
+    if (whiteIndex >= 0 && whiteIndex < numWhiteKeys) {
+      return WHITE_KEYS[whiteIndex].id;
+    }
+
+    return null;
   };
 
   // Process MediaPipe Hand Results
@@ -353,7 +424,6 @@ export default function HandTrackerBoard() {
     // Clear UI canvas for new cursor frame
     uiCtx.clearRect(0, 0, uiCanvas.width, uiCanvas.height);
 
-    // If in PIANO mode, render piano keyboard plate
     if (boardMode === "PIANO") {
       drawPianoKeyboard(uiCtx);
     }
@@ -362,8 +432,8 @@ export default function HandTrackerBoard() {
     if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
       setGestureState("NO_HAND");
       prevCoordsRef.current = null;
-      if (activeKeyIndexRef.current !== null) {
-        activeKeyIndexRef.current = null;
+      if (activeKeyIdRef.current !== null) {
+        activeKeyIdRef.current = null;
         setActivePianoKey(null);
       }
       return;
@@ -372,7 +442,6 @@ export default function HandTrackerBoard() {
     const landmarks = results.multiHandLandmarks[0];
 
     // Detect gestures
-    // Standard landmarks: 8 is index tip, 6 is index pip, 12 is middle tip, 10 is middle pip
     const isIndexExtended = landmarks[8].y < landmarks[6].y;
     const isMiddleExtended = landmarks[12].y < landmarks[10].y;
     const isRingExtended = landmarks[16].y < landmarks[14].y;
@@ -411,9 +480,8 @@ export default function HandTrackerBoard() {
         }
         prevCoordsRef.current = { x, y };
       } else if (currentState === "ERASE") {
-        // Erase using destination-out composite operation
         drawCtx.globalCompositeOperation = "destination-out";
-        drawCtx.lineWidth = brushSize * 3; // Make eraser larger than brush
+        drawCtx.lineWidth = brushSize * 3;
 
         if (prevCoordsRef.current) {
           drawCtx.beginPath();
@@ -432,28 +500,26 @@ export default function HandTrackerBoard() {
       drawUiCursor(uiCtx, x, y, currentState);
     } else if (boardMode === "PIANO") {
       // PIANO MODE LOGIC
-      prevCoordsRef.current = null; // No drawing coordinates kept in piano mode
-
-      const pianoHeight = 120;
-      const yStart = drawingCanvas.height - pianoHeight;
-      const keyWidth = drawingCanvas.width / PIANO_KEYS.length;
+      prevCoordsRef.current = null;
 
       let targetKey: number | null = null;
 
-      // Finger tip touches piano keys
-      if (y >= yStart && y <= drawingCanvas.height && (currentState === "DRAWING" || currentState === "ERASE")) {
-        targetKey = Math.floor(x / keyWidth);
-        if (targetKey < 0) targetKey = 0;
-        if (targetKey >= PIANO_KEYS.length) targetKey = PIANO_KEYS.length - 1;
+      // Finger tip touches piano area (Drawing or Erasing active finger trigger play)
+      if (x >= 0 && x <= drawingCanvas.width && y >= 0 && y <= drawingCanvas.height && (currentState === "DRAWING" || currentState === "ERASE")) {
+        targetKey = getPianoKeyAt(x, y, drawingCanvas.width, drawingCanvas.height);
       }
 
       // Check if note trigger state changes to play tone
-      if (targetKey !== activeKeyIndexRef.current) {
-        activeKeyIndexRef.current = targetKey;
+      if (targetKey !== activeKeyIdRef.current) {
+        activeKeyIdRef.current = targetKey;
         setActivePianoKey(targetKey);
 
         if (targetKey !== null) {
-          playNoteSound(PIANO_KEYS[targetKey].freq);
+          // Play matching frequency
+          const keyObj = WHITE_KEYS.find((k) => k.id === targetKey) || BLACK_KEYS.find((k) => k.id === targetKey);
+          if (keyObj) {
+            playNoteSound(keyObj.freq);
+          }
         }
       }
 
@@ -560,7 +626,6 @@ export default function HandTrackerBoard() {
   // Handle Mode Change & Audio Resume
   const switchMode = (mode: "DRAW" | "PIANO") => {
     setBoardMode(mode);
-    // Initialize/resume AudioContext on user interaction
     try {
       if (!audioCtxRef.current) {
         const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -611,10 +676,10 @@ export default function HandTrackerBoard() {
       <div className="hud-panel-left relative z-10 w-full lg:w-80 flex flex-col gap-6 shrink-0 opacity-0">
         <div className="p-5 bg-black/50 border border-white/10 rounded-xl backdrop-blur-md">
           <h3 className="text-[#61dca3] font-[family-name:var(--font-orbitron)] font-bold text-sm tracking-widest mb-1">
-            CONTROL_HUD_v1.2
+            CONTROL_HUD_v1.5
           </h3>
           <p className="text-zinc-500 text-[10px] uppercase tracking-wider mb-5">
-            Gesture drawing & virtual synth
+            Gesture drawing & full synthesizer
           </p>
 
           {/* Mode Switcher Tabs */}
@@ -649,13 +714,13 @@ export default function HandTrackerBoard() {
             <div className="flex items-center justify-between text-xs py-1 border-b border-white/5">
               <span className="text-zinc-400">1 Jari (Telunjuk)</span>
               <span className="text-[#61dca3] font-bold">
-                {boardMode === "DRAW" ? "Menggambar (DRAW)" : "Bunyikan Nada"}
+                {boardMode === "DRAW" ? "Menggambar (DRAW)" : "Tekan Nada"}
               </span>
             </div>
             <div className="flex items-center justify-between text-xs py-1 border-b border-white/5">
               <span className="text-zinc-400">2 Jari (Telunjuk+Tengah)</span>
               <span className="text-rose-400 font-bold">
-                {boardMode === "DRAW" ? "Penghapus (ERASE)" : "Bunyikan Nada"}
+                {boardMode === "DRAW" ? "Penghapus (ERASE)" : "Tekan Nada"}
               </span>
             </div>
             <div className="flex items-center justify-between text-xs py-1">
@@ -782,7 +847,7 @@ export default function HandTrackerBoard() {
         <canvas
           ref={drawingCanvasRef}
           className={`absolute inset-0 w-full h-full z-10 cursor-none transition-opacity ${
-            boardMode === "DRAW" ? "opacity-100" : "opacity-30 pointer-events-none"
+            boardMode === "DRAW" ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}
         />
 
