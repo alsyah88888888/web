@@ -640,7 +640,7 @@ export default function HandTrackerBoard() {
 
         setTimeout(() => {
           const textMsg = "Halo Riansyah! Saya baru saja menggambar ini menggunakan fitur Hand Tracker MediaPipe di website portfolio Anda. [Silakan Paste (Ctrl+V) file gambar di sini]";
-          const waUrl = `https://wa.me/6281386175161?text=${encodeURIComponent(textMsg)}`;
+          const waUrl = `https://wa.me/6281295876434?text=${encodeURIComponent(textMsg)}`;
           window.open(waUrl, "_blank");
         }, 1200);
       }
