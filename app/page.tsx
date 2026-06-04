@@ -30,6 +30,15 @@ const HandTrackerBoard = dynamic(() => import("@/components/HandTrackerBoard"), 
   ),
 });
 
+const BehanceShowcase = dynamic(() => import("@/components/BehanceShowcase"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-full w-full min-h-[400px] flex items-center justify-center text-[#61dca3] font-mono tracking-widest text-xs">
+      LOADING CREATIVE PORTFOLIO MODULE...
+    </div>
+  ),
+});
+
 export default function HackerPortfolio() {
   const menuItems = [
     { label: "Home", ariaLabel: "Go to home page", link: "/" },
@@ -131,6 +140,13 @@ export default function HackerPortfolio() {
                 </motion.div>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* BEHANCE CREATIVE PORTFOLIO SECTION - snap-start */}
+        <section className="min-h-screen py-24 px-6 bg-black/70 backdrop-blur-md snap-start border-t border-white/5">
+          <div className="max-w-7xl mx-auto">
+            <BehanceShowcase />
           </div>
         </section>
 
