@@ -79,6 +79,8 @@ export default function HandTrackerBoard() {
   useEffect(() => {
     if (!isLoaded) return;
 
+    let cameraInstance: any = null;
+
     const drawingCanvas = drawingCanvasRef.current;
     const uiCanvas = uiCanvasRef.current;
     if (!drawingCanvas || !uiCanvas) return;
