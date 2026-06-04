@@ -48,9 +48,6 @@ export default function HandTrackerBoard() {
         if (!active) return;
         setIsLoading(false);
         setIsLoaded(true);
-        
-        // Trigger entrance animation once scripts load
-        animateEntrance();
       } catch (err) {
         console.error("Error loading MediaPipe scripts:", err);
         if (active) {
@@ -186,6 +183,16 @@ export default function HandTrackerBoard() {
       }
     };
   }, [isLoaded]);
+
+  // Trigger entrance animation once loaded and DOM has rendered
+  useEffect(() => {
+    if (isLoaded && !isLoading) {
+      const timer = setTimeout(() => {
+        animateEntrance();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoaded, isLoading]);
 
   // Entrance GSAP animation
   const animateEntrance = () => {
