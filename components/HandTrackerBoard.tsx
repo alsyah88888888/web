@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Camera, Trash2, Palette, Sliders, Check, Share2, AlertCircle } from "lucide-react";
+import { Camera, Trash2, Palette, Sliders, Check, Share2, AlertCircle, Music, Edit3 } from "lucide-react";
 import { gsap } from "gsap";
 
 const COLORS = [
@@ -14,34 +14,47 @@ const COLORS = [
 
 const SIZES = [2, 4, 8, 12, 18];
 
+const PIANO_KEYS = [
+  { note: "C4", freq: 261.63, label: "Do" },
+  { note: "D4", freq: 293.66, label: "Re" },
+  { note: "E4", freq: 329.63, label: "Mi" },
+  { note: "F4", freq: 349.23, label: "Fa" },
+  { note: "G4", freq: 392.00, label: "Sol" },
+  { note: "A4", freq: 440.00, label: "La" },
+  { note: "B4", freq: 493.88, label: "Si" },
+  { note: "C5", freq: 523.25, label: "Do" },
+];
+
 export default function HandTrackerBoard() {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const drawingCanvasRef = useRef<HTMLCanvasElement>(null);
   const uiCanvasRef = useRef<HTMLCanvasElement>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
 
   // States
+  const [boardMode, setBoardMode] = useState<"DRAW" | "PIANO">("DRAW");
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
-  const [gestureState, setGestureState] = useState<"NO_HAND" | "HOVER" | "DRAWING" | "PAUSED">("NO_HAND");
+  const [gestureState, setGestureState] = useState<"NO_HAND" | "DRAWING" | "ERASE" | "PAUSED">("NO_HAND");
   const [brushColor, setBrushColor] = useState("#61dca3");
   const [brushSize, setBrushSize] = useState(8);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
 
-  // Refs for tracking drawing coordinates across frames
+  // Refs for tracking drawing coordinates and piano states across frames
   const prevCoordsRef = useRef<{ x: number; y: number } | null>(null);
+  const activeKeyIndexRef = useRef<number | null>(null);
+  const [activePianoKey, setActivePianoKey] = useState<number | null>(null);
 
   // Load MediaPipe CDN Scripts
   useEffect(() => {
     let active = true;
-    let cameraInstance: any = null;
 
     const loadScriptsAndInit = async () => {
       try {
-        // Load MediaPipe scripts
         await loadScript("https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js");
         await loadScript("https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js");
 
@@ -61,14 +74,6 @@ export default function HandTrackerBoard() {
 
     return () => {
       active = false;
-      // Cleanup camera if active
-      if (cameraInstance) {
-        try {
-          cameraInstance.stop();
-        } catch (e) {
-          console.error(e);
-        }
-      }
     };
   }, []);
 
@@ -77,7 +82,6 @@ export default function HandTrackerBoard() {
     if (!isLoaded) return;
 
     let cameraInstance: any = null;
-
     const drawingCanvas = drawingCanvasRef.current;
     const uiCanvas = uiCanvasRef.current;
     if (!drawingCanvas || !uiCanvas) return;
@@ -89,7 +93,6 @@ export default function HandTrackerBoard() {
         const width = parent.clientWidth;
         const height = parent.clientHeight || 500;
         
-        // Save current canvas content to restore after resize
         const tempCanvas = document.createElement("canvas");
         tempCanvas.width = drawingCanvas.width;
         tempCanvas.height = drawingCanvas.height;
@@ -103,7 +106,6 @@ export default function HandTrackerBoard() {
         uiCanvas.width = width;
         uiCanvas.height = height;
 
-        // Restore content
         const drawCtx = drawingCanvas.getContext("2d");
         if (drawCtx) {
           drawCtx.lineCap = "round";
@@ -194,6 +196,54 @@ export default function HandTrackerBoard() {
     }
   }, [isLoaded, isLoading]);
 
+  // Trigger UI canvas redraw on mode change
+  useEffect(() => {
+    const uiCanvas = uiCanvasRef.current;
+    if (uiCanvas) {
+      const ctx = uiCanvas.getContext("2d");
+      if (ctx) {
+        ctx.clearRect(0, 0, uiCanvas.width, uiCanvas.height);
+        if (boardMode === "PIANO") {
+          drawPianoKeyboard(ctx);
+        }
+      }
+    }
+  }, [boardMode, activePianoKey]);
+
+  // Web Audio Synth
+  const playNoteSound = (freq: number) => {
+    if (typeof window === "undefined") return;
+    try {
+      if (!audioCtxRef.current) {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        audioCtxRef.current = new AudioCtx();
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx.state === "suspended") {
+        ctx.resume();
+      }
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+      // Synthesizer ADSR Envelope for retro synth/bell tone
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.7);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start();
+      osc.stop(ctx.currentTime + 0.7);
+    } catch (e) {
+      console.warn("AudioContext tone trigger failed: ", e);
+    }
+  };
+
   // Entrance GSAP animation
   const animateEntrance = () => {
     if (!containerRef.current) return;
@@ -233,6 +283,63 @@ export default function HandTrackerBoard() {
     });
   };
 
+  // Render Piano Keys on UI Canvas
+  const drawPianoKeyboard = (ctx: CanvasRenderingContext2D) => {
+    const canvas = uiCanvasRef.current;
+    if (!canvas) return;
+
+    const width = canvas.width;
+    const height = canvas.height;
+    const pianoHeight = 120;
+    const keyWidth = width / PIANO_KEYS.length;
+    const yStart = height - pianoHeight;
+
+    ctx.save();
+    
+    // Background plate
+    ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+    ctx.fillRect(0, yStart, width, pianoHeight);
+    ctx.strokeStyle = "rgba(97, 220, 163, 0.2)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, yStart, width, pianoHeight);
+
+    // Draw individual keys
+    PIANO_KEYS.forEach((key, i) => {
+      const xStart = i * keyWidth;
+      const isActive = activePianoKey === i;
+
+      // Glow effect for active keys
+      if (isActive) {
+        ctx.fillStyle = "rgba(97, 220, 163, 0.4)";
+        ctx.fillRect(xStart + 2, yStart + 2, keyWidth - 4, pianoHeight - 4);
+        
+        ctx.strokeStyle = "#61dca3";
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "#61dca3";
+      } else {
+        ctx.fillStyle = "rgba(20, 20, 25, 0.9)";
+        ctx.fillRect(xStart + 2, yStart + 2, keyWidth - 4, pianoHeight - 4);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
+        ctx.shadowBlur = 0;
+      }
+
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(xStart + 2, yStart + 2, keyWidth - 4, pianoHeight - 4);
+
+      // Draw Key text/notes
+      ctx.font = "bold 12px monospace";
+      ctx.fillStyle = isActive ? "#61dca3" : "rgba(255,255,255,0.4)";
+      ctx.textAlign = "center";
+      ctx.fillText(key.note, xStart + keyWidth / 2, yStart + pianoHeight - 35);
+      
+      ctx.font = "9px monospace";
+      ctx.fillStyle = isActive ? "#ffffff" : "rgba(255,255,255,0.2)";
+      ctx.fillText(key.label, xStart + keyWidth / 2, yStart + pianoHeight - 15);
+    });
+
+    ctx.restore();
+  };
+
   // Process MediaPipe Hand Results
   const handleHandTrackingResults = (results: any) => {
     const drawingCanvas = drawingCanvasRef.current;
@@ -246,10 +353,19 @@ export default function HandTrackerBoard() {
     // Clear UI canvas for new cursor frame
     uiCtx.clearRect(0, 0, uiCanvas.width, uiCanvas.height);
 
+    // If in PIANO mode, render piano keyboard plate
+    if (boardMode === "PIANO") {
+      drawPianoKeyboard(uiCtx);
+    }
+
     // If no hands detected
     if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
       setGestureState("NO_HAND");
       prevCoordsRef.current = null;
+      if (activeKeyIndexRef.current !== null) {
+        activeKeyIndexRef.current = null;
+        setActivePianoKey(null);
+      }
       return;
     }
 
@@ -257,7 +373,6 @@ export default function HandTrackerBoard() {
 
     // Detect gestures
     // Standard landmarks: 8 is index tip, 6 is index pip, 12 is middle tip, 10 is middle pip
-    // 16 is ring tip, 14 is ring pip, 20 is pinky tip, 18 is pinky pip
     const isIndexExtended = landmarks[8].y < landmarks[6].y;
     const isMiddleExtended = landmarks[12].y < landmarks[10].y;
     const isRingExtended = landmarks[16].y < landmarks[14].y;
@@ -268,61 +383,116 @@ export default function HandTrackerBoard() {
     const x = (1 - indexTip.x) * drawingCanvas.width;
     const y = indexTip.y * drawingCanvas.height;
 
-    let currentState: "HOVER" | "DRAWING" | "PAUSED" = "PAUSED";
+    let currentState: "DRAWING" | "ERASE" | "PAUSED" = "PAUSED";
 
     if (isIndexExtended && !isMiddleExtended && !isRingExtended && !isPinkyExtended) {
       currentState = "DRAWING";
     } else if (isIndexExtended && isMiddleExtended && !isRingExtended && !isPinkyExtended) {
-      currentState = "HOVER";
+      currentState = "ERASE";
     }
 
     setGestureState(currentState);
 
-    // Render interactive cursor on UI canvas
-    drawUiOverlay(uiCtx, x, y, currentState);
+    // Handle states based on Board Mode
+    if (boardMode === "DRAW") {
+      // Handle DRAWING / ERASING actions
+      drawCtx.save();
+      
+      if (currentState === "DRAWING") {
+        drawCtx.globalCompositeOperation = "source-over";
+        drawCtx.strokeStyle = brushColor;
+        drawCtx.lineWidth = brushSize;
 
-    // Draw line on Drawing Canvas if in DRAWING state
-    if (currentState === "DRAWING") {
-      drawCtx.strokeStyle = brushColor;
-      drawCtx.lineWidth = brushSize;
+        if (prevCoordsRef.current) {
+          drawCtx.beginPath();
+          drawCtx.moveTo(prevCoordsRef.current.x, prevCoordsRef.current.y);
+          drawCtx.lineTo(x, y);
+          drawCtx.stroke();
+        }
+        prevCoordsRef.current = { x, y };
+      } else if (currentState === "ERASE") {
+        // Erase using destination-out composite operation
+        drawCtx.globalCompositeOperation = "destination-out";
+        drawCtx.lineWidth = brushSize * 3; // Make eraser larger than brush
 
-      if (prevCoordsRef.current) {
-        drawCtx.beginPath();
-        drawCtx.moveTo(prevCoordsRef.current.x, prevCoordsRef.current.y);
-        drawCtx.lineTo(x, y);
-        drawCtx.stroke();
+        if (prevCoordsRef.current) {
+          drawCtx.beginPath();
+          drawCtx.moveTo(prevCoordsRef.current.x, prevCoordsRef.current.y);
+          drawCtx.lineTo(x, y);
+          drawCtx.stroke();
+        }
+        prevCoordsRef.current = { x, y };
+      } else {
+        prevCoordsRef.current = null;
       }
-      prevCoordsRef.current = { x, y };
-    } else {
-      // Clear previous coordinates when not drawing to start a new line segment next time
-      prevCoordsRef.current = null;
+      
+      drawCtx.restore();
+
+      // Render interactive HUD cursor on overlay canvas
+      drawUiCursor(uiCtx, x, y, currentState);
+    } else if (boardMode === "PIANO") {
+      // PIANO MODE LOGIC
+      prevCoordsRef.current = null; // No drawing coordinates kept in piano mode
+
+      const pianoHeight = 120;
+      const yStart = drawingCanvas.height - pianoHeight;
+      const keyWidth = drawingCanvas.width / PIANO_KEYS.length;
+
+      let targetKey: number | null = null;
+
+      // Finger tip touches piano keys
+      if (y >= yStart && y <= drawingCanvas.height && (currentState === "DRAWING" || currentState === "ERASE")) {
+        targetKey = Math.floor(x / keyWidth);
+        if (targetKey < 0) targetKey = 0;
+        if (targetKey >= PIANO_KEYS.length) targetKey = PIANO_KEYS.length - 1;
+      }
+
+      // Check if note trigger state changes to play tone
+      if (targetKey !== activeKeyIndexRef.current) {
+        activeKeyIndexRef.current = targetKey;
+        setActivePianoKey(targetKey);
+
+        if (targetKey !== null) {
+          playNoteSound(PIANO_KEYS[targetKey].freq);
+        }
+      }
+
+      // Draw standard cursor pointer in piano mode
+      drawUiCursor(uiCtx, x, y, currentState);
     }
   };
 
-  // Draw transient cursor/UI overlay
-  const drawUiOverlay = (ctx: CanvasRenderingContext2D, x: number, y: number, state: "HOVER" | "DRAWING" | "PAUSED") => {
+  // Draw interactive cursor pointer on UI overlay
+  const drawUiCursor = (ctx: CanvasRenderingContext2D, x: number, y: number, state: "DRAWING" | "ERASE" | "PAUSED") => {
     ctx.save();
+    
+    const sizeOffset = state === "DRAWING" ? 10 : state === "ERASE" ? 18 : 22;
     
     // Draw outer pulsing indicator
     ctx.beginPath();
-    ctx.arc(x, y, brushSize + (state === "DRAWING" ? 10 : 18), 0, 2 * Math.PI);
-    ctx.strokeStyle = state === "DRAWING" ? brushColor : "#ffffff55";
+    ctx.arc(x, y, brushSize + sizeOffset, 0, 2 * Math.PI);
+    ctx.strokeStyle = state === "DRAWING" ? brushColor : state === "ERASE" ? "#ff007f" : "#ffffff55";
     ctx.lineWidth = 1.5;
-    ctx.setLineDash(state === "HOVER" ? [4, 4] : []);
+    ctx.setLineDash(state === "ERASE" ? [5, 3] : []);
     ctx.stroke();
 
     // Draw inner solid pointer
     ctx.beginPath();
     ctx.arc(x, y, brushSize / 2 + 2, 0, 2 * Math.PI);
-    ctx.fillStyle = state === "DRAWING" ? brushColor : "#ffffffbb";
+    ctx.fillStyle = state === "DRAWING" ? brushColor : state === "ERASE" ? "#ff007f" : "#ffffffbb";
     ctx.shadowBlur = 10;
-    ctx.shadowColor = brushColor;
+    ctx.shadowColor = state === "DRAWING" ? brushColor : state === "ERASE" ? "#ff007f" : "#ffffff";
     ctx.fill();
 
-    // Label pointer
+    // Label pointer state
     ctx.font = "10px monospace";
     ctx.fillStyle = "#ffffffaa";
-    ctx.fillText(state === "DRAWING" ? "DRAWING" : "POINTER", x + brushSize + 15, y + 4);
+    
+    let label = "POINTER";
+    if (state === "DRAWING") label = boardMode === "PIANO" ? "PLAY NOTE" : "DRAWING";
+    else if (state === "ERASE") label = "ERASER";
+
+    ctx.fillText(label, x + brushSize + 15, y + 4);
 
     ctx.restore();
   };
@@ -344,14 +514,12 @@ export default function HandTrackerBoard() {
     const drawingCanvas = drawingCanvasRef.current;
     if (!drawingCanvas) return;
 
-    // Check if anything is drawn (we can inspect if canvas contains pixels, but simple download & copy is fine)
     try {
       const blob = await new Promise<Blob | null>((resolve) =>
         drawingCanvas.toBlob(resolve, "image/png")
       );
 
       if (blob) {
-        // Attempt to copy to clipboard
         try {
           await navigator.clipboard.write([
             new ClipboardItem({
@@ -364,7 +532,6 @@ export default function HandTrackerBoard() {
           triggerToast("Mengunduh hasil gambar...");
         }
 
-        // Trigger automatic image download
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
@@ -372,7 +539,6 @@ export default function HandTrackerBoard() {
         link.click();
         URL.revokeObjectURL(url);
 
-        // Open WhatsApp link
         setTimeout(() => {
           const textMsg = "Halo Riansyah! Saya baru saja menggambar ini menggunakan fitur Hand Tracker MediaPipe di website portfolio Anda. [Silakan Paste (Ctrl+V) file gambar di sini]";
           const waUrl = `https://wa.me/6281386175161?text=${encodeURIComponent(textMsg)}`;
@@ -389,6 +555,21 @@ export default function HandTrackerBoard() {
     setToastMessage(msg);
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
+  };
+
+  // Handle Mode Change & Audio Resume
+  const switchMode = (mode: "DRAW" | "PIANO") => {
+    setBoardMode(mode);
+    // Initialize/resume AudioContext on user interaction
+    try {
+      if (!audioCtxRef.current) {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        audioCtxRef.current = new AudioCtx();
+      }
+      if (audioCtxRef.current.state === "suspended") {
+        audioCtxRef.current.resume();
+      }
+    } catch (e) {}
   };
 
   return (
@@ -430,11 +611,35 @@ export default function HandTrackerBoard() {
       <div className="hud-panel-left relative z-10 w-full lg:w-80 flex flex-col gap-6 shrink-0 opacity-0">
         <div className="p-5 bg-black/50 border border-white/10 rounded-xl backdrop-blur-md">
           <h3 className="text-[#61dca3] font-[family-name:var(--font-orbitron)] font-bold text-sm tracking-widest mb-1">
-            CONTROL_HUD_v1.0
+            CONTROL_HUD_v1.2
           </h3>
-          <p className="text-zinc-500 text-[10px] uppercase tracking-wider mb-6">
-            Hand gesture drawing unit
+          <p className="text-zinc-500 text-[10px] uppercase tracking-wider mb-5">
+            Gesture drawing & virtual synth
           </p>
+
+          {/* Mode Switcher Tabs */}
+          <div className="flex gap-2 mb-6 p-1 bg-zinc-900/80 border border-white/5 rounded-lg">
+            <button
+              onClick={() => switchMode("DRAW")}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded text-xs font-mono transition-all ${
+                boardMode === "DRAW"
+                  ? "bg-[#61dca3]/20 border border-[#61dca3]/30 text-[#61dca3] font-bold"
+                  : "border border-transparent text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              <Edit3 size={12} /> DRAW
+            </button>
+            <button
+              onClick={() => switchMode("PIANO")}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded text-xs font-mono transition-all ${
+                boardMode === "PIANO"
+                  ? "bg-[#61dca3]/20 border border-[#61dca3]/30 text-[#61dca3] font-bold"
+                  : "border border-transparent text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              <Music size={12} /> PIANO
+            </button>
+          </div>
 
           {/* Gestures Tutorial Legend */}
           <div className="mb-6 space-y-3">
@@ -443,11 +648,15 @@ export default function HandTrackerBoard() {
             </h4>
             <div className="flex items-center justify-between text-xs py-1 border-b border-white/5">
               <span className="text-zinc-400">1 Jari (Telunjuk)</span>
-              <span className="text-[#61dca3] font-bold">Menggambar (DRAW)</span>
+              <span className="text-[#61dca3] font-bold">
+                {boardMode === "DRAW" ? "Menggambar (DRAW)" : "Bunyikan Nada"}
+              </span>
             </div>
             <div className="flex items-center justify-between text-xs py-1 border-b border-white/5">
               <span className="text-zinc-400">2 Jari (Telunjuk+Tengah)</span>
-              <span className="text-cyan-400 font-bold">Gerakkan (HOVER)</span>
+              <span className="text-rose-400 font-bold">
+                {boardMode === "DRAW" ? "Penghapus (ERASE)" : "Bunyikan Nada"}
+              </span>
             </div>
             <div className="flex items-center justify-between text-xs py-1">
               <span className="text-zinc-400">Kepalan / Buka Tangan</span>
@@ -455,60 +664,66 @@ export default function HandTrackerBoard() {
             </div>
           </div>
 
-          {/* Color Selection */}
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-3 text-zinc-300 text-xs uppercase tracking-wider font-bold">
-              <Palette size={14} className="text-[#61dca3]" />
-              Warna Kuas
-            </div>
-            <div className="flex flex-wrap gap-2.5">
-              {COLORS.map((col) => (
-                <button
-                  key={col.value}
-                  onClick={() => setBrushColor(col.value)}
-                  className="group relative w-8 h-8 rounded-full border border-white/10 flex items-center justify-center transition-transform hover:scale-110 active:scale-95"
-                  style={{ backgroundColor: col.value }}
-                  title={col.name}
-                >
-                  {brushColor === col.value && (
-                    <Check size={14} className={col.value === "#ffffff" ? "text-black" : "text-white"} />
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
+          {boardMode === "DRAW" && (
+            <>
+              {/* Color Selection */}
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-3 text-zinc-300 text-xs uppercase tracking-wider font-bold">
+                  <Palette size={14} className="text-[#61dca3]" />
+                  Warna Kuas
+                </div>
+                <div className="flex flex-wrap gap-2.5">
+                  {COLORS.map((col) => (
+                    <button
+                      key={col.value}
+                      onClick={() => setBrushColor(col.value)}
+                      className="group relative w-8 h-8 rounded-full border border-white/10 flex items-center justify-center transition-transform hover:scale-110 active:scale-95"
+                      style={{ backgroundColor: col.value }}
+                      title={col.name}
+                    >
+                      {brushColor === col.value && (
+                        <Check size={14} className={col.value === "#ffffff" ? "text-black" : "text-white"} />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          {/* Size Selection */}
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-3 text-zinc-300 text-xs uppercase tracking-wider font-bold">
-              <Sliders size={14} className="text-[#61dca3]" />
-              Ketebalan Garis ({brushSize}px)
-            </div>
-            <div className="flex items-center gap-3">
-              {SIZES.map((size) => (
-                <button
-                  key={size}
-                  onClick={() => setBrushSize(size)}
-                  className={`flex-1 py-1.5 text-xs font-mono border rounded transition-all ${
-                    brushSize === size
-                      ? "bg-[#61dca3] text-black border-[#61dca3] font-bold"
-                      : "border-white/10 hover:border-white/30 text-zinc-400"
-                  }`}
-                >
-                  {size}px
-                </button>
-              ))}
-            </div>
-          </div>
+              {/* Size Selection */}
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-3 text-zinc-300 text-xs uppercase tracking-wider font-bold">
+                  <Sliders size={14} className="text-[#61dca3]" />
+                  Ketebalan ({brushSize}px)
+                </div>
+                <div className="flex items-center gap-3">
+                  {SIZES.map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => setBrushSize(size)}
+                      className={`flex-1 py-1.5 text-xs font-mono border rounded transition-all ${
+                        brushSize === size
+                          ? "bg-[#61dca3] text-black border-[#61dca3] font-bold"
+                          : "border-white/10 hover:border-white/30 text-zinc-400"
+                      }`}
+                    >
+                      {size}px
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Action Buttons */}
           <div className="flex flex-col gap-3">
-            <button
-              onClick={handleClearCanvas}
-              className="flex items-center justify-center gap-2 w-full p-3 bg-zinc-900 hover:bg-zinc-800 border border-white/10 hover:border-[#61dca3]/50 text-white rounded font-mono text-xs uppercase tracking-wider transition-all"
-            >
-              <Trash2 size={14} /> Clear Canvas
-            </button>
+            {boardMode === "DRAW" && (
+              <button
+                onClick={handleClearCanvas}
+                className="flex items-center justify-center gap-2 w-full p-3 bg-zinc-900 hover:bg-zinc-800 border border-white/10 hover:border-[#61dca3]/50 text-white rounded font-mono text-xs uppercase tracking-wider transition-all"
+              >
+                <Trash2 size={14} /> Clear Canvas
+              </button>
+            )}
 
             {/* CTA Button: Share to WhatsApp */}
             <button
@@ -529,11 +744,11 @@ export default function HandTrackerBoard() {
             className={`font-mono text-xs font-bold px-2 py-0.5 rounded tracking-wide ${
               gestureState === "DRAWING"
                 ? "bg-[#61dca3]/20 text-[#61dca3]"
-                : gestureState === "HOVER"
-                ? "bg-cyan-500/20 text-cyan-400"
+                : gestureState === "ERASE"
+                ? "bg-rose-500/20 text-rose-400"
                 : gestureState === "PAUSED"
                 ? "bg-amber-500/20 text-amber-400"
-                : "bg-rose-500/20 text-rose-400 animate-pulse"
+                : "bg-zinc-500/20 text-zinc-400 animate-pulse"
             }`}
           >
             {gestureState}
@@ -541,11 +756,11 @@ export default function HandTrackerBoard() {
         </div>
       </div>
 
-      {/* Main Drawing Area (Right Side) */}
+      {/* Main Interactive Area (Right Side) */}
       <div className="board-canvas-wrapper relative z-10 flex-1 h-[350px] md:h-[500px] lg:h-auto min-h-[450px] border border-white/10 rounded-xl bg-zinc-950/80 overflow-hidden opacity-0">
         {/* Helper instructions overlay */}
         <div className="absolute top-4 left-4 z-20 pointer-events-none bg-black/60 border border-white/5 p-2 px-3 rounded text-[10px] text-zinc-400 font-mono">
-          CANVAS_ACTIVE // RESOLUTION DETECTED
+          {boardMode === "DRAW" ? "CANVAS_ACTIVE // RESOLUTION DETECTED" : "SYNTH_ACTIVE // KEYBOARD MAP READY"}
         </div>
 
         {/* Layer 1: Webcam Feed (mirrored small card in bottom corner) */}
@@ -564,9 +779,14 @@ export default function HandTrackerBoard() {
         </div>
 
         {/* Layer 2: Permanent Drawing Canvas */}
-        <canvas ref={drawingCanvasRef} className="absolute inset-0 w-full h-full z-10 cursor-none" />
+        <canvas
+          ref={drawingCanvasRef}
+          className={`absolute inset-0 w-full h-full z-10 cursor-none transition-opacity ${
+            boardMode === "DRAW" ? "opacity-100" : "opacity-30 pointer-events-none"
+          }`}
+        />
 
-        {/* Layer 3: Interactive UI (Cursor, HUD text) Overlay Canvas */}
+        {/* Layer 3: Interactive UI (Cursor, HUD text, Piano Keys) Overlay Canvas */}
         <canvas ref={uiCanvasRef} className="absolute inset-0 w-full h-full z-20 pointer-events-none" />
       </div>
 
