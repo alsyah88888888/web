@@ -57,6 +57,28 @@ export default function HandTrackerBoard() {
   const activeKeyIdRef = useRef<number | null>(null);
   const [activePianoKey, setActivePianoKey] = useState<number | null>(null);
 
+  // Refs to prevent stale closure inside MediaPipe callback
+  const boardModeRef = useRef(boardMode);
+  const brushColorRef = useRef(brushColor);
+  const brushSizeRef = useRef(brushSize);
+  const activePianoKeyRef = useRef(activePianoKey);
+
+  useEffect(() => {
+    boardModeRef.current = boardMode;
+  }, [boardMode]);
+
+  useEffect(() => {
+    brushColorRef.current = brushColor;
+  }, [brushColor]);
+
+  useEffect(() => {
+    brushSizeRef.current = brushSize;
+  }, [brushSize]);
+
+  useEffect(() => {
+    activePianoKeyRef.current = activePianoKey;
+  }, [activePianoKey]);
+
   // Load MediaPipe CDN Scripts
   useEffect(() => {
     let active = true;
@@ -118,6 +140,14 @@ export default function HandTrackerBoard() {
           drawCtx.lineCap = "round";
           drawCtx.lineJoin = "round";
           drawCtx.drawImage(tempCanvas, 0, 0, width, height);
+        }
+
+        // Draw keyboard once size is set if in piano mode
+        if (boardModeRef.current === "PIANO") {
+          const uiCtx = uiCanvas.getContext("2d");
+          if (uiCtx) {
+            drawPianoKeyboard(uiCtx);
+          }
         }
       }
     };
@@ -312,7 +342,7 @@ export default function HandTrackerBoard() {
     for (let i = 0; i < numWhiteKeys; i++) {
       const key = WHITE_KEYS[i];
       const xStart = i * whiteKeyWidth;
-      const isActive = activePianoKey === key.id;
+      const isActive = activePianoKeyRef.current === key.id;
 
       if (isActive) {
         // Glowing Neon Gradient for White Key
@@ -350,7 +380,7 @@ export default function HandTrackerBoard() {
     BLACK_KEYS.forEach((key) => {
       const xCenter = key.leftOffset * whiteKeyWidth;
       const xStart = xCenter - blackKeyWidth / 2;
-      const isActive = activePianoKey === key.id;
+      const isActive = activePianoKeyRef.current === key.id;
 
       if (isActive) {
         // Glowing active state for black keys (Hot Pink / Magenta)
@@ -424,7 +454,10 @@ export default function HandTrackerBoard() {
     // Clear UI canvas for new cursor frame
     uiCtx.clearRect(0, 0, uiCanvas.width, uiCanvas.height);
 
-    if (boardMode === "PIANO") {
+    const currentMode = boardModeRef.current;
+
+    // Render piano keyboard if in PIANO mode
+    if (currentMode === "PIANO") {
       drawPianoKeyboard(uiCtx);
     }
 
@@ -463,14 +496,14 @@ export default function HandTrackerBoard() {
     setGestureState(currentState);
 
     // Handle states based on Board Mode
-    if (boardMode === "DRAW") {
+    if (currentMode === "DRAW") {
       // Handle DRAWING / ERASING actions
       drawCtx.save();
       
       if (currentState === "DRAWING") {
         drawCtx.globalCompositeOperation = "source-over";
-        drawCtx.strokeStyle = brushColor;
-        drawCtx.lineWidth = brushSize;
+        drawCtx.strokeStyle = brushColorRef.current;
+        drawCtx.lineWidth = brushSizeRef.current;
 
         if (prevCoordsRef.current) {
           drawCtx.beginPath();
@@ -481,7 +514,7 @@ export default function HandTrackerBoard() {
         prevCoordsRef.current = { x, y };
       } else if (currentState === "ERASE") {
         drawCtx.globalCompositeOperation = "destination-out";
-        drawCtx.lineWidth = brushSize * 3;
+        drawCtx.lineWidth = brushSizeRef.current * 3;
 
         if (prevCoordsRef.current) {
           drawCtx.beginPath();
@@ -498,7 +531,7 @@ export default function HandTrackerBoard() {
 
       // Render interactive HUD cursor on overlay canvas
       drawUiCursor(uiCtx, x, y, currentState);
-    } else if (boardMode === "PIANO") {
+    } else if (currentMode === "PIANO") {
       // PIANO MODE LOGIC
       prevCoordsRef.current = null;
 
@@ -515,7 +548,6 @@ export default function HandTrackerBoard() {
         setActivePianoKey(targetKey);
 
         if (targetKey !== null) {
-          // Play matching frequency
           const keyObj = WHITE_KEYS.find((k) => k.id === targetKey) || BLACK_KEYS.find((k) => k.id === targetKey);
           if (keyObj) {
             playNoteSound(keyObj.freq);
@@ -533,21 +565,22 @@ export default function HandTrackerBoard() {
     ctx.save();
     
     const sizeOffset = state === "DRAWING" ? 10 : state === "ERASE" ? 18 : 22;
+    const currentMode = boardModeRef.current;
     
     // Draw outer pulsing indicator
     ctx.beginPath();
-    ctx.arc(x, y, brushSize + sizeOffset, 0, 2 * Math.PI);
-    ctx.strokeStyle = state === "DRAWING" ? brushColor : state === "ERASE" ? "#ff007f" : "#ffffff55";
+    ctx.arc(x, y, brushSizeRef.current + sizeOffset, 0, 2 * Math.PI);
+    ctx.strokeStyle = state === "DRAWING" ? brushColorRef.current : state === "ERASE" ? "#ff007f" : "#ffffff55";
     ctx.lineWidth = 1.5;
     ctx.setLineDash(state === "ERASE" ? [5, 3] : []);
     ctx.stroke();
 
     // Draw inner solid pointer
     ctx.beginPath();
-    ctx.arc(x, y, brushSize / 2 + 2, 0, 2 * Math.PI);
-    ctx.fillStyle = state === "DRAWING" ? brushColor : state === "ERASE" ? "#ff007f" : "#ffffffbb";
+    ctx.arc(x, y, brushSizeRef.current / 2 + 2, 0, 2 * Math.PI);
+    ctx.fillStyle = state === "DRAWING" ? brushColorRef.current : state === "ERASE" ? "#ff007f" : "#ffffffbb";
     ctx.shadowBlur = 10;
-    ctx.shadowColor = state === "DRAWING" ? brushColor : state === "ERASE" ? "#ff007f" : "#ffffff";
+    ctx.shadowColor = state === "DRAWING" ? brushColorRef.current : state === "ERASE" ? "#ff007f" : "#ffffff";
     ctx.fill();
 
     // Label pointer state
@@ -555,10 +588,10 @@ export default function HandTrackerBoard() {
     ctx.fillStyle = "#ffffffaa";
     
     let label = "POINTER";
-    if (state === "DRAWING") label = boardMode === "PIANO" ? "PLAY NOTE" : "DRAWING";
+    if (state === "DRAWING") label = currentMode === "PIANO" ? "PLAY NOTE" : "DRAWING";
     else if (state === "ERASE") label = "ERASER";
 
-    ctx.fillText(label, x + brushSize + 15, y + 4);
+    ctx.fillText(label, x + brushSizeRef.current + 15, y + 4);
 
     ctx.restore();
   };
