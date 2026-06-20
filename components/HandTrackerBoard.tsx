@@ -85,7 +85,6 @@ export default function HandTrackerBoard() {
 
     const loadScriptsAndInit = async () => {
       try {
-        await loadScript("https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js");
         await loadScript("https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js");
 
         if (!active) return;
@@ -184,45 +183,51 @@ export default function HandTrackerBoard() {
       handleHandTrackingResults(results);
     });
 
-    // Start Camera
+    // Start Camera using native getUserMedia
+    let animationFrameId: number;
+    let isCameraActive = true;
     const video = videoRef.current;
-    if (video) {
-      // @ts-ignore
-      const mpCamera = window.Camera;
-      if (mpCamera) {
-        const camera = new mpCamera(video, {
-          onFrame: async () => {
+    
+    const startCamera = async () => {
+      if (!video) return;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } } 
+        });
+        video.srcObject = stream;
+        await video.play();
+        setCameraActive(true);
+        
+        const processFrame = async () => {
+          if (!isCameraActive) return;
+          if (video.readyState >= 2) {
             try {
               await hands.send({ image: video });
             } catch (e) {
-              console.warn("Error in hands.send:", e);
+              // ignore internal processing errors
             }
-          },
-          width: 320,
-          height: 240,
-        });
-
-        camera.start()
-          .then(() => {
-            setCameraActive(true);
-          })
-          .catch((err: any) => {
-            console.error("Camera access failed", err);
-            setLoadError("Akses kamera ditolak. Silakan izinkan kamera untuk mencoba fitur ini.");
-          });
-
-        cameraInstance = camera;
+          }
+          animationFrameId = requestAnimationFrame(processFrame);
+        };
+        processFrame();
+      } catch (err) {
+        console.error("Camera access failed", err);
+        setLoadError("Akses kamera ditolak. Silakan izinkan kamera untuk mencoba fitur ini.");
       }
-    }
+    };
+    
+    startCamera();
 
     return () => {
       window.removeEventListener("resize", resizeCanvases);
-      if (cameraInstance) {
-        try {
-          cameraInstance.stop();
-        } catch (e) {
-          console.error(e);
-        }
+      isCameraActive = false;
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+      if (video && video.srcObject) {
+        const stream = video.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+        video.srcObject = null;
       }
       if (hands) {
         try {
