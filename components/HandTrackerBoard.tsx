@@ -85,8 +85,8 @@ export default function HandTrackerBoard() {
 
     const loadScriptsAndInit = async () => {
       try {
-        await loadScript("https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js");
-        await loadScript("https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js");
+        await loadScript("https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js");
+        await loadScript("https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js");
 
         if (!active) return;
         setIsLoading(false);
@@ -169,7 +169,7 @@ export default function HandTrackerBoard() {
 
     const hands = new mpHands({
       locateFile: (file: string) => {
-        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`;
       },
     });
 
@@ -192,7 +192,11 @@ export default function HandTrackerBoard() {
       if (mpCamera) {
         const camera = new mpCamera(video, {
           onFrame: async () => {
-            await hands.send({ image: video });
+            try {
+              await hands.send({ image: video });
+            } catch (e) {
+              console.warn("Error in hands.send:", e);
+            }
           },
           width: 320,
           height: 240,
@@ -216,6 +220,13 @@ export default function HandTrackerBoard() {
       if (cameraInstance) {
         try {
           cameraInstance.stop();
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      if (hands) {
+        try {
+          hands.close();
         } catch (e) {
           console.error(e);
         }
