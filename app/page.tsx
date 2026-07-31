@@ -7,7 +7,6 @@ import {
   MessageCircle,
   Linkedin,
   Mail,
-  ChevronDown,
   ExternalLink,
 } from "lucide-react";
 import StaggeredMenu from "@/components/StaggeredMenu";
@@ -81,12 +80,6 @@ export default function HackerPortfolio() {
             </div>
           </motion.div>
 
-          <div className="absolute bottom-10 animate-bounce text-zinc-500">
-            <p className="text-[10px] mb-2 tracking-widest">
-              SCROLL TO ACCESS ID
-            </p>
-            <ChevronDown size={20} className="mx-auto" />
-          </div>
         </section>
 
         {/* LANYARD SECTION - snap-start */}
@@ -217,8 +210,8 @@ export default function HackerPortfolio() {
           </div>
         </section>
 
-        <footer className="py-12 text-center text-zinc-700 text-[10px] tracking-[0.5em] uppercase snap-end">
-          © 2026 // Riansyah Lubis // Secure Connection Active
+        <footer className="py-12 text-center text-zinc-400 text-xs tracking-[0.4em] uppercase snap-end font-mono">
+          © 2026 // Riansyah Lubis
         </footer>
       </div>
     </main>
