@@ -79,9 +79,32 @@ export default function HandTrackerBoard() {
     activePianoKeyRef.current = activePianoKey;
   }, [activePianoKey]);
 
-  // Load MediaPipe CDN Scripts
+  // Load MediaPipe CDN Scripts & silence WASM internal C++ logs
   useEffect(() => {
     let active = true;
+
+    // Supress bisingnya log internal dari WASM C++ Emscripten (@mediapipe)
+    const origLog = console.log;
+    const origWarn = console.warn;
+    const origError = console.error;
+
+    const filterWasm = (origFn: any, args: any[]) => {
+      const msg = args.map((a) => (typeof a === "string" ? a : "")).join(" ");
+      if (
+        msg.includes("gl_context") ||
+        msg.includes("OpenGL error checking is disabled") ||
+        msg.includes("Successfully created a WebGL context") ||
+        msg.includes("I0000") ||
+        msg.includes("W0000")
+      ) {
+        return;
+      }
+      origFn.apply(console, args);
+    };
+
+    console.log = (...args: any[]) => filterWasm(origLog, args);
+    console.warn = (...args: any[]) => filterWasm(origWarn, args);
+    console.error = (...args: any[]) => filterWasm(origError, args);
 
     const loadScriptsAndInit = async () => {
       try {
@@ -103,6 +126,9 @@ export default function HandTrackerBoard() {
 
     return () => {
       active = false;
+      console.log = origLog;
+      console.warn = origWarn;
+      console.error = origError;
     };
   }, []);
 

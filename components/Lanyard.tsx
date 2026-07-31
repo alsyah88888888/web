@@ -131,39 +131,91 @@ function Band() {
 
       [card, j1, j2, j3, fixed].forEach((ref) => ref.current?.wakeUp());
 
-      // Optimasi: Menggunakan LERP agar gerakan mengikuti mouse secara halus (smooth)
       const currentTrans = card.current.translation();
-      const targetX = vec.x - dragged.x;
-      const targetY = vec.y - dragged.y;
-      const targetZ = vec.z - dragged.z;
+      if (currentTrans && !isNaN(currentTrans.x)) {
+        const targetX = vec.x - dragged.x;
+        const targetY = vec.y - dragged.y;
+        const targetZ = vec.z - dragged.z;
 
-      card.current?.setNextKinematicTranslation({
-        x: THREE.MathUtils.lerp(currentTrans.x, targetX, 0.25),
-        y: THREE.MathUtils.lerp(currentTrans.y, targetY, 0.25),
-        z: THREE.MathUtils.lerp(currentTrans.z, targetZ, 0.25),
-      });
+        card.current?.setNextKinematicTranslation({
+          x: THREE.MathUtils.lerp(currentTrans.x, targetX, 0.25),
+          y: THREE.MathUtils.lerp(currentTrans.y, targetY, 0.25),
+          z: THREE.MathUtils.lerp(currentTrans.z, targetZ, 0.25),
+        });
+      }
     }
 
-    if (fixed.current && j1.current && band.current) {
-      [j1, j2].forEach((ref) => {
-        if (!ref.current.lerped)
-          ref.current.lerped = new THREE.Vector3().copy(
-            ref.current.translation(),
-          );
-        ref.current.lerped.lerp(ref.current.translation(), delta * 20);
-      });
-      curve.points[0].copy(j3.current.translation());
-      curve.points[1].copy(j2.current.lerped);
-      curve.points[2].copy(j1.current.lerped);
-      curve.points[3].copy(fixed.current.translation());
-      band.current.geometry.setPoints(curve.getPoints(32));
+    if (fixed.current && j1.current && j2.current && j3.current && band.current) {
+      const p0 = j3.current.translation();
+      const p3 = fixed.current.translation();
 
-      // Mengontrol rotasi liar
-      ang.copy(card.current.angvel());
-      const rotQuat = card.current.rotation();
-      const quaternion = new THREE.Quaternion(rotQuat.x, rotQuat.y, rotQuat.z, rotQuat.w);
-      const euler = new THREE.Euler().setFromQuaternion(quaternion);
-      card.current.setAngvel({ x: ang.x, y: ang.y - euler.y * 0.25, z: ang.z });
+      // Pastikan semua posisi joint sudah siap dan bukan nilai koordinat nol awal atau NaN
+      if (
+        p0 &&
+        p3 &&
+        !isNaN(p0.x) &&
+        !isNaN(p0.y) &&
+        !isNaN(p0.z) &&
+        !isNaN(p3.x) &&
+        !isNaN(p3.y) &&
+        !isNaN(p3.z) &&
+        (p0.x !== 0 || p0.y !== 0 || p0.z !== 0) &&
+        (p3.x !== 0 || p3.y !== 0 || p3.z !== 0)
+      ) {
+        [j1, j2].forEach((ref) => {
+          const trans = ref.current.translation();
+          if (trans && !isNaN(trans.x) && (trans.x !== 0 || trans.y !== 0)) {
+            if (!ref.current.lerped) {
+              ref.current.lerped = new THREE.Vector3().copy(trans);
+            } else {
+              ref.current.lerped.lerp(trans, delta * 20);
+            }
+          }
+        });
+
+        if (j1.current.lerped && j2.current.lerped) {
+          curve.points[0].copy(p0);
+          curve.points[1].copy(j2.current.lerped);
+          curve.points[2].copy(j1.current.lerped);
+          curve.points[3].copy(p3);
+
+          const points = curve.getPoints(32);
+          const isValid = points.every(
+            (pt) =>
+              pt &&
+              !isNaN(pt.x) &&
+              !isNaN(pt.y) &&
+              !isNaN(pt.z) &&
+              isFinite(pt.x) &&
+              isFinite(pt.y) &&
+              isFinite(pt.z)
+          );
+
+          if (isValid) {
+            band.current.geometry.setPoints(points);
+          }
+        }
+      }
+
+      // Mengontrol rotasi liar secara aman dari nilai NaN
+      if (card.current) {
+        const rotQuat = card.current.rotation();
+        if (rotQuat && !isNaN(rotQuat.x)) {
+          ang.copy(card.current.angvel());
+          const quaternion = new THREE.Quaternion(
+            rotQuat.x,
+            rotQuat.y,
+            rotQuat.z,
+            rotQuat.w
+          );
+          const euler = new THREE.Euler().setFromQuaternion(quaternion);
+          card.current.setAngvel({
+            x: ang.x,
+            y: ang.y - euler.y * 0.25,
+            z: ang.z,
+          });
+        }
+      }
     }
   });
 
