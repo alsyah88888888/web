@@ -26,9 +26,9 @@ const cardGLB = "/web/assets/lanyard/card.glb";
 const lanyardTexture = "/web/assets/lanyard/lanyard.png";
 
 export default function Lanyard({
-  position = [0, 0, 26] as [number, number, number],
-  gravity = [0, -40, 0] as [number, number, number],
-  fov = 24,
+  position = [0, 0, 20] as [number, number, number], // Jarak kamera lebih dekat agar lebih presisi
+  gravity = [0, -60, 0] as [number, number, number], // Gravitasi lebih berat agar tidak melayang liar
+  fov = 25,
 }) {
   const [isClient, setIsClient] = useState(false);
 
@@ -113,7 +113,7 @@ function Band() {
   );
   const [dragged, drag] = useState<false | THREE.Vector3>(false);
 
-  // Joint untuk tali diatur stabil (1.0) agar solver fisika Rapier tidak pernah menghasilkan NaN
+  // Joint untuk tali
   useRopeJoint(fixed, j1, [[0, 0, 0], [0, 0, 0], 1]);
   useRopeJoint(j1, j2, [[0, 0, 0], [0, 0, 0], 1]);
   useRopeJoint(j2, j3, [[0, 0, 0], [0, 0, 0], 1]);
@@ -144,54 +144,26 @@ function Band() {
       });
     }
 
-    if (fixed.current && j1.current && j2.current && j3.current && band.current) {
-      const j3Pos = j3.current.translation();
-      const fixedPos = fixed.current.translation();
-
-      if (
-        j3Pos &&
-        fixedPos &&
-        !isNaN(j3Pos.x) &&
-        !isNaN(j3Pos.y) &&
-        !isNaN(j3Pos.z)
-      ) {
-        [j1, j2].forEach((ref) => {
-          if (!ref.current.lerped)
-            ref.current.lerped = new THREE.Vector3().copy(
-              ref.current.translation(),
-            );
-          const trans = ref.current.translation();
-          if (trans && !isNaN(trans.x) && !isNaN(trans.y) && !isNaN(trans.z)) {
-            ref.current.lerped.lerp(trans, delta * 20);
-          }
-        });
-
-        curve.points[0].copy(j3Pos);
-        curve.points[1].copy(j2.current.lerped);
-        curve.points[2].copy(j1.current.lerped);
-        curve.points[3].copy(fixedPos);
-        band.current.geometry.setPoints(curve.getPoints(32));
-      }
-
-      // Mengontrol rotasi liar secara aman dari nilai NaN
-      if (card.current) {
-        ang.copy(card.current.angvel());
-        const rotQuat = card.current.rotation();
-        if (rotQuat && !isNaN(rotQuat.x)) {
-          const quaternion = new THREE.Quaternion(
-            rotQuat.x,
-            rotQuat.y,
-            rotQuat.z,
-            rotQuat.w,
+    if (fixed.current && j1.current && band.current) {
+      [j1, j2].forEach((ref) => {
+        if (!ref.current.lerped)
+          ref.current.lerped = new THREE.Vector3().copy(
+            ref.current.translation(),
           );
-          const euler = new THREE.Euler().setFromQuaternion(quaternion);
-          card.current.setAngvel({
-            x: ang.x,
-            y: ang.y - euler.y * 0.25,
-            z: ang.z,
-          });
-        }
-      }
+        ref.current.lerped.lerp(ref.current.translation(), delta * 20);
+      });
+      curve.points[0].copy(j3.current.translation());
+      curve.points[1].copy(j2.current.lerped);
+      curve.points[2].copy(j1.current.lerped);
+      curve.points[3].copy(fixed.current.translation());
+      band.current.geometry.setPoints(curve.getPoints(32));
+
+      // Mengontrol rotasi liar
+      ang.copy(card.current.angvel());
+      const rotQuat = card.current.rotation();
+      const quaternion = new THREE.Quaternion(rotQuat.x, rotQuat.y, rotQuat.z, rotQuat.w);
+      const euler = new THREE.Euler().setFromQuaternion(quaternion);
+      card.current.setAngvel({ x: ang.x, y: ang.y - euler.y * 0.25, z: ang.z });
     }
   });
 
@@ -199,7 +171,7 @@ function Band() {
 
   return (
     <>
-      <group position={[0, 5, 0]}>
+      <group position={[0, 4, 0]}>
         <RigidBody ref={fixed} type="fixed" />
         {/* Damping ditingkatkan agar tali tidak memantul berlebihan */}
         <RigidBody

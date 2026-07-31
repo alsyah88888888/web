@@ -1,15 +1,16 @@
 "use client";
 import React from "react";
 import dynamic from "next/dynamic";
+import LetterGlitch from "@/components/LetterGlitch";
 import { motion } from "framer-motion";
 import {
   MessageCircle,
-  Linkedin,
+  Instagram,
   Mail,
+  ChevronDown,
   ExternalLink,
 } from "lucide-react";
 import StaggeredMenu from "@/components/StaggeredMenu";
-import LanyardHUD from "@/components/LanyardHUD";
 
 const Lanyard = dynamic(() => import("@/components/Lanyard"), {
   ssr: false,
@@ -18,32 +19,6 @@ const Lanyard = dynamic(() => import("@/components/Lanyard"), {
       INITIALIZING ID...
     </div>
   ),
-});
-
-const GridDistortion = dynamic(() => import("@/components/GridDistortion"), {
-  ssr: false,
-});
-
-const HandTrackerBoard = dynamic(() => import("@/components/HandTrackerBoard"), {
-  ssr: false,
-  loading: () => (
-    <div className="h-full w-full flex items-center justify-center text-[#61dca3] font-mono tracking-widest text-xs">
-      LOADING HAND TRACKER BOARD...
-    </div>
-  ),
-});
-
-const BehanceShowcase = dynamic(() => import("@/components/BehanceShowcase"), {
-  ssr: false,
-  loading: () => (
-    <div className="h-full w-full min-h-[400px] flex items-center justify-center text-[#61dca3] font-mono tracking-widest text-xs">
-      LOADING CREATIVE PORTFOLIO MODULE...
-    </div>
-  ),
-});
-
-const CareerJourney = dynamic(() => import("@/components/CareerJourney"), {
-  ssr: false,
 });
 
 export default function HackerPortfolio() {
@@ -56,20 +31,14 @@ export default function HackerPortfolio() {
   return (
     <main className="relative h-screen w-full bg-black overflow-x-hidden overflow-y-auto snap-y snap-mandatory font-mono selection:bg-[#61dca3]/30 scroll-smooth">
       {/* BACKGROUND FIXED (Tetap) */}
-      <div className="fixed inset-0 z-0 w-full h-full overflow-hidden bg-black">
-        <GridDistortion
-          imageSrc="/web/images/riansyah-bg.jpg"
-          grid={12}
-          mouse={0.25}
-          strength={0.15}
-          relaxation={0.9}
+      <div className="fixed inset-0 z-0 w-full h-full overflow-hidden">
+        <LetterGlitch
+          glitchColors={["#2b4539", "#61dca3", "#61b3dc"]}
+          glitchSpeed={50}
+          centerVignette={false}
+          outerVignette={true}
+          smooth={true}
         />
-        {/* Cinematic Cyberpunk Emerald Vignette & Multi-layer Dark Gradient Overlay agar tidak belang dan terlihat profesional */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(6,18,15,0.25)_0%,rgba(0,0,0,0.85)_100%)] pointer-events-none" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/85 via-transparent to-black/95 pointer-events-none" />
-        <div className="absolute inset-0 bg-black/45 backdrop-blur-[1px] pointer-events-none" />
-        {/* Subtle scanline / cyber texture for consistency */}
-        <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.15)_50%)] bg-[size:100%_4px] opacity-25" />
       </div>
 
       <div className="relative z-10">
@@ -94,30 +63,31 @@ export default function HackerPortfolio() {
             </div>
           </motion.div>
 
-        </section>
-
-        {/* LANYARD SECTION - snap-start */}
-        <section className="relative h-screen w-full bg-black/60 backdrop-blur-md border-y border-white/5 snap-start overflow-hidden">
-          {/* Cyberpunk Executive Bio & Security Clearance HUD */}
-          <LanyardHUD />
-
-          <div className="w-full h-full relative z-10">
-            <Lanyard position={[0, 0, 24]} gravity={[0, -35, 0]} />
+          <div className="absolute bottom-10 animate-bounce text-zinc-500">
+            <p className="text-[10px] mb-2 tracking-widest">
+              SCROLL TO ACCESS ID
+            </p>
+            <ChevronDown size={20} className="mx-auto" />
           </div>
         </section>
 
-        {/* CAREER TIMELINE & LEADERSHIP JOURNEY SECTION - snap-start */}
-        <section
-          id="career"
-          className="min-h-screen py-24 px-6 bg-black/65 backdrop-blur-md snap-start border-t border-white/5"
-        >
-          <div className="max-w-7xl mx-auto">
-            <CareerJourney />
+        {/* LANYARD SECTION - snap-start */}
+        <section className="relative h-screen w-full bg-black/40 backdrop-blur-sm border-y border-white/5 snap-start">
+          <div className="absolute top-10 left-10 z-20">
+            <h2 className="text-[#61dca3] font-[family-name:var(--font-orbitron)] text-xl tracking-tighter">
+              ACCESSING ID...
+            </h2>
+            <p className="text-zinc-500 text-[10px] tracking-widest">
+              It's me, Riansyah Lubis
+            </p>
+          </div>
+          <div className="w-full h-full">
+            <Lanyard position={[0, 0, 20]} gravity={[0, -40, 0]} />
           </div>
         </section>
 
         {/* PROJECT SECTION - snap-start */}
-        <section className="min-h-screen py-24 px-6 bg-black/60 backdrop-blur-md snap-start border-t border-white/5">
+        <section className="min-h-screen py-24 px-6 bg-black/60 backdrop-blur-md snap-start">
           <div className="max-w-7xl mx-auto">
             <div className="mb-16">
               <h2 className="text-[#61dca3] font-[family-name:var(--font-orbitron)] text-3xl tracking-tighter">
@@ -155,13 +125,6 @@ export default function HackerPortfolio() {
           </div>
         </section>
 
-        {/* BEHANCE CREATIVE PORTFOLIO SECTION - snap-start */}
-        <section className="min-h-screen py-24 px-6 bg-black/70 backdrop-blur-md snap-start border-t border-white/5">
-          <div className="max-w-7xl mx-auto">
-            <BehanceShowcase />
-          </div>
-        </section>
-
         {/* INFO SECTION - snap-start */}
         <section className="h-screen flex items-center py-32 px-6 bg-black/80 backdrop-blur-xl border-t border-white/5 snap-start">
           <div className="max-w-4xl mx-auto w-full">
@@ -177,7 +140,7 @@ export default function HackerPortfolio() {
 
               <div className="flex flex-col gap-4">
                 <a
-                  href="https://wa.me/6281295876434"
+                  href="https://wa.me/6281386175161"
                   className="flex items-center justify-center gap-3 bg-[#61dca3] text-black p-4 font-bold hover:shadow-[0_0_20px_#61dca3] transition-all"
                 >
                   <MessageCircle size={20} /> CONTACT_WHATSAPP
@@ -194,12 +157,10 @@ export default function HackerPortfolio() {
                     <Mail className="inline mr-2" size={18} /> EMAIL
                   </a>
                   <a
-                    href="https://www.linkedin.com/in/riansyah-lubis-6675b031a/?trk=opento_sprofile_details"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href="https://www.instagram.com/alsyah88888/"
                     className="flex-1 border border-white/10 p-4 text-center hover:bg-white/5 transition-all text-white"
                   >
-                    <Linkedin className="inline mr-2" size={18} /> LINKEDIN
+                    <Instagram className="inline mr-2" size={18} /> IG
                   </a>
                 </div>
               </div>
@@ -207,30 +168,8 @@ export default function HackerPortfolio() {
           </div>
         </section>
 
-        {/* HAND TRACKER WHITEBOARD SECTION - snap-start */}
-        <section className="min-h-screen md:h-screen flex flex-col items-center justify-center p-6 bg-black/90 border-t border-white/5 snap-start relative">
-          <div className="max-w-6xl w-full h-[90%] flex flex-col justify-center">
-            <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
-              <div>
-                <h2 className="text-[#61dca3] font-[family-name:var(--font-orbitron)] text-2xl md:text-3xl tracking-tighter">
-                  HAND_TRACKING_BOARD
-                </h2>
-                <p className="text-zinc-500 text-xs tracking-[0.3em] uppercase mt-1">
-                  Interactive MediaPipe Canvas // AI Gesture Graphics
-                </p>
-              </div>
-              <div className="text-zinc-500 text-[10px] tracking-widest uppercase font-mono">
-                [ CAMERA_ACCESS_REQUIRED ]
-              </div>
-            </div>
-            <div className="flex-1 min-h-0">
-              <HandTrackerBoard />
-            </div>
-          </div>
-        </section>
-
-        <footer className="py-12 text-center text-zinc-400 text-xs tracking-[0.4em] uppercase snap-end font-mono">
-          © 2026 // Riansyah Lubis
+        <footer className="py-12 text-center text-zinc-700 text-[10px] tracking-[0.5em] uppercase snap-end">
+          © 2026 // Riansyah Lubis // Secure Connection Active
         </footer>
       </div>
     </main>
