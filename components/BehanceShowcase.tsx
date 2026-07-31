@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight, ExternalLink, Globe, MonitorPlay, Eye } from
 
 export default function BehanceShowcase() {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [loadIframe, setLoadIframe] = useState(false);
+  const [loadIframe, setLoadIframe] = useState(true);
 
   const slides = [
     {
@@ -61,7 +61,7 @@ export default function BehanceShowcase() {
             }`}
           >
             {loadIframe ? <Eye size={14} /> : <MonitorPlay size={14} />}
-            {loadIframe ? "View Slides" : "Load Live Embed"}
+            {loadIframe ? "View Summary Slides (3)" : "View All Works (Live Embed)"}
           </button>
           
           <a
@@ -76,7 +76,7 @@ export default function BehanceShowcase() {
       </div>
 
       {/* DISPLAY CONTAINER */}
-      <div className="relative aspect-[16/9] w-full bg-black border border-white/5 rounded-lg overflow-hidden flex items-center justify-center">
+      <div className="relative h-[550px] md:h-[680px] w-full bg-black border border-white/5 rounded-lg overflow-hidden flex items-center justify-center">
         {loadIframe ? (
           /* LIVE BEHANCE IFRAME */
           <div className="w-full h-full relative">

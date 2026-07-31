@@ -1,7 +1,6 @@
 "use client";
 import React from "react";
 import dynamic from "next/dynamic";
-import LetterGlitch from "@/components/LetterGlitch";
 import { motion } from "framer-motion";
 import {
   MessageCircle,
@@ -18,6 +17,10 @@ const Lanyard = dynamic(() => import("@/components/Lanyard"), {
       INITIALIZING ID...
     </div>
   ),
+});
+
+const GridDistortion = dynamic(() => import("@/components/GridDistortion"), {
+  ssr: false,
 });
 
 const HandTrackerBoard = dynamic(() => import("@/components/HandTrackerBoard"), {
@@ -49,13 +52,15 @@ export default function HackerPortfolio() {
     <main className="relative h-screen w-full bg-black overflow-x-hidden overflow-y-auto snap-y snap-mandatory font-mono selection:bg-[#61dca3]/30 scroll-smooth">
       {/* BACKGROUND FIXED (Tetap) */}
       <div className="fixed inset-0 z-0 w-full h-full overflow-hidden">
-        <LetterGlitch
-          glitchColors={["#2b4539", "#61dca3", "#61b3dc"]}
-          glitchSpeed={50}
-          centerVignette={false}
-          outerVignette={true}
-          smooth={true}
+        <GridDistortion
+          imageSrc="https://images.unsplash.com/photo-1620121692029-d088224ddc74?q=80&w=3432&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+          grid={10}
+          mouse={0.25}
+          strength={0.15}
+          relaxation={0.9}
         />
+        {/* Subtle dark overlay for optimal typography readability */}
+        <div className="absolute inset-0 bg-black/40 pointer-events-none" />
       </div>
 
       <div className="relative z-10">
