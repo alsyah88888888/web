@@ -102,7 +102,7 @@ export default function HackerPortfolio() {
           <LanyardHUD />
 
           <div className="w-full h-full relative z-10">
-            <Lanyard position={[0, 0, 20]} gravity={[0, -40, 0]} />
+            <Lanyard position={[0, 0, 24]} gravity={[0, -35, 0]} />
           </div>
         </section>
 

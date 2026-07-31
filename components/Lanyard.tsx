@@ -26,9 +26,9 @@ const cardGLB = "/web/assets/lanyard/card.glb";
 const lanyardTexture = "/web/assets/lanyard/lanyard.png";
 
 export default function Lanyard({
-  position = [0, 0, 20] as [number, number, number], // Jarak kamera lebih dekat agar lebih presisi
-  gravity = [0, -60, 0] as [number, number, number], // Gravitasi lebih berat agar tidak melayang liar
-  fov = 25,
+  position = [0, 0, 24] as [number, number, number],
+  gravity = [0, -35, 0] as [number, number, number],
+  fov = 22,
 }) {
   const [isClient, setIsClient] = useState(false);
 
@@ -113,13 +113,13 @@ function Band() {
   );
   const [dragged, drag] = useState<false | THREE.Vector3>(false);
 
-  // Joint untuk tali
-  useRopeJoint(fixed, j1, [[0, 0, 0], [0, 0, 0], 1]);
-  useRopeJoint(j1, j2, [[0, 0, 0], [0, 0, 0], 1]);
-  useRopeJoint(j2, j3, [[0, 0, 0], [0, 0, 0], 1]);
+  // Joint untuk tali dengan panjang optimal agar kartu berada pas di tengah layar (tidak terpotong di bawah)
+  useRopeJoint(fixed, j1, [[0, 0, 0], [0, 0, 0], 0.7]);
+  useRopeJoint(j1, j2, [[0, 0, 0], [0, 0, 0], 0.7]);
+  useRopeJoint(j2, j3, [[0, 0, 0], [0, 0, 0], 0.7]);
   useSphericalJoint(j3, card, [
     [0, 0, 0],
-    [0, 1.45, 0],
+    [0, 1.2, 0],
   ]);
 
   useFrame((state, delta) => {
@@ -171,7 +171,7 @@ function Band() {
 
   return (
     <>
-      <group position={[0, 4, 0]}>
+      <group position={[0, 3.6, 0]}>
         <RigidBody ref={fixed} type="fixed" />
         {/* Damping ditingkatkan agar tali tidak memantul berlebihan */}
         <RigidBody
