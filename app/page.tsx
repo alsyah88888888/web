@@ -41,6 +41,10 @@ const BehanceShowcase = dynamic(() => import("@/components/BehanceShowcase"), {
   ),
 });
 
+const CareerJourney = dynamic(() => import("@/components/CareerJourney"), {
+  ssr: false,
+});
+
 export default function HackerPortfolio() {
   const menuItems = [
     { label: "Home", ariaLabel: "Go to home page", link: "/" },
@@ -106,8 +110,18 @@ export default function HackerPortfolio() {
           </div>
         </section>
 
+        {/* CAREER TIMELINE & LEADERSHIP JOURNEY SECTION - snap-start */}
+        <section
+          id="career"
+          className="min-h-screen py-24 px-6 bg-black/65 backdrop-blur-md snap-start border-t border-white/5"
+        >
+          <div className="max-w-7xl mx-auto">
+            <CareerJourney />
+          </div>
+        </section>
+
         {/* PROJECT SECTION - snap-start */}
-        <section className="min-h-screen py-24 px-6 bg-black/60 backdrop-blur-md snap-start">
+        <section className="min-h-screen py-24 px-6 bg-black/60 backdrop-blur-md snap-start border-t border-white/5">
           <div className="max-w-7xl mx-auto">
             <div className="mb-16">
               <h2 className="text-[#61dca3] font-[family-name:var(--font-orbitron)] text-3xl tracking-tighter">
