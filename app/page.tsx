@@ -9,6 +9,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import StaggeredMenu from "@/components/StaggeredMenu";
+import LanyardHUD from "@/components/LanyardHUD";
 
 const Lanyard = dynamic(() => import("@/components/Lanyard"), {
   ssr: false,
@@ -96,16 +97,11 @@ export default function HackerPortfolio() {
         </section>
 
         {/* LANYARD SECTION - snap-start */}
-        <section className="relative h-screen w-full bg-black/40 backdrop-blur-sm border-y border-white/5 snap-start">
-          <div className="absolute top-10 left-10 z-20">
-            <h2 className="text-[#61dca3] font-[family-name:var(--font-orbitron)] text-xl tracking-tighter">
-              ACCESSING ID...
-            </h2>
-            <p className="text-zinc-500 text-[10px] tracking-widest">
-              It's me, Riansyah Lubis
-            </p>
-          </div>
-          <div className="w-full h-full">
+        <section className="relative h-screen w-full bg-black/60 backdrop-blur-md border-y border-white/5 snap-start overflow-hidden">
+          {/* Cyberpunk Executive Bio & Security Clearance HUD */}
+          <LanyardHUD />
+
+          <div className="w-full h-full relative z-10">
             <Lanyard position={[0, 0, 20]} gravity={[0, -40, 0]} />
           </div>
         </section>
