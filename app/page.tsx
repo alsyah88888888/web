@@ -51,16 +51,20 @@ export default function HackerPortfolio() {
   return (
     <main className="relative h-screen w-full bg-black overflow-x-hidden overflow-y-auto snap-y snap-mandatory font-mono selection:bg-[#61dca3]/30 scroll-smooth">
       {/* BACKGROUND FIXED (Tetap) */}
-      <div className="fixed inset-0 z-0 w-full h-full overflow-hidden">
+      <div className="fixed inset-0 z-0 w-full h-full overflow-hidden bg-black">
         <GridDistortion
-          imageSrc="https://images.unsplash.com/photo-1620121692029-d088224ddc74?q=80&w=3432&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-          grid={10}
+          imageSrc="/web/images/riansyah-bg.jpg"
+          grid={12}
           mouse={0.25}
           strength={0.15}
           relaxation={0.9}
         />
-        {/* Subtle dark overlay for optimal typography readability */}
-        <div className="absolute inset-0 bg-black/40 pointer-events-none" />
+        {/* Cinematic Cyberpunk Emerald Vignette & Multi-layer Dark Gradient Overlay agar tidak belang dan terlihat profesional */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(6,18,15,0.25)_0%,rgba(0,0,0,0.85)_100%)] pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/85 via-transparent to-black/95 pointer-events-none" />
+        <div className="absolute inset-0 bg-black/45 backdrop-blur-[1px] pointer-events-none" />
+        {/* Subtle scanline / cyber texture for consistency */}
+        <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.15)_50%)] bg-[size:100%_4px] opacity-25" />
       </div>
 
       <div className="relative z-10">

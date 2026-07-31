@@ -115,7 +115,12 @@ export default function GridDistortion({
         uv -= dir * effect * uStrength * 0.6;
         
         vec4 color = texture2D(uTexture, uv);
-        gl_FragColor = color;
+        
+        // Cinematic color harmonization to match website emerald cyberpunk palette (#61dca3)
+        vec3 col = color.rgb;
+        col = mix(col, col * vec3(0.92, 1.05, 1.05), 0.4);
+        
+        gl_FragColor = vec4(col, color.a);
       }
     `;
 
