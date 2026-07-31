@@ -105,10 +105,10 @@ function Band() {
   const [curve] = useState(
     () =>
       new THREE.CatmullRomCurve3([
-        new THREE.Vector3(),
-        new THREE.Vector3(),
-        new THREE.Vector3(),
-        new THREE.Vector3(),
+        new THREE.Vector3(0, 4, 0),
+        new THREE.Vector3(0, 3, 0),
+        new THREE.Vector3(0, 2, 0),
+        new THREE.Vector3(0, 1, 0),
       ]),
   );
   const [dragged, drag] = useState<false | THREE.Vector3>(false);
@@ -180,16 +180,26 @@ function Band() {
           curve.points[3].copy(p3);
 
           const points = curve.getPoints(32);
-          const isValid = points.every(
-            (pt) =>
-              pt &&
-              !isNaN(pt.x) &&
-              !isNaN(pt.y) &&
-              !isNaN(pt.z) &&
-              isFinite(pt.x) &&
-              isFinite(pt.y) &&
-              isFinite(pt.z)
-          );
+          let hasZeroDistance = false;
+          for (let i = 0; i < points.length - 1; i++) {
+            if (points[i].distanceToSquared(points[i + 1]) < 0.000001) {
+              hasZeroDistance = true;
+              break;
+            }
+          }
+
+          const isValid =
+            !hasZeroDistance &&
+            points.every(
+              (pt) =>
+                pt &&
+                !isNaN(pt.x) &&
+                !isNaN(pt.y) &&
+                !isNaN(pt.z) &&
+                isFinite(pt.x) &&
+                isFinite(pt.y) &&
+                isFinite(pt.z)
+            );
 
           if (isValid) {
             band.current.geometry.setPoints(points);
@@ -290,7 +300,7 @@ function Band() {
       </group>
       {lineMaterial && (
         <mesh ref={band} material={lineMaterial}>
-          <meshLineGeometry />
+          <meshLineGeometry points={curve.getPoints(32)} />
         </mesh>
       )}
     </>
